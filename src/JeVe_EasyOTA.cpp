@@ -60,6 +60,12 @@ void EasyOTA::onConnect(THandlerFunction_Connect fn) {
 void EasyOTA::onScan(THandlerFunction_Scan fn) {
   on_scan = fn;
 }
+void EasyOTA::onProgress(ArduinoOTAClass::THandlerFunction_Progress fn) {
+  on_progress = fn;
+}
+void EasyOTA::onStart(ArduinoOTAClass::THandlerFunction fn) {
+  on_start = fn;
+}
 void EasyOTA::setPassword(const String& password)
 {
 	_password = password;
@@ -86,19 +92,22 @@ void EasyOTA::eachAP(THandlerFunction_APList fn, void * param)
 int EasyOTA::setupOTA(unsigned long now)
 {
 	// ArduinoOTA callback functions
-  ArduinoOTA.onStart([this]() {
-    showMessage("OTA starting...", 1);
-  });
+  ArduinoOTA.onStart([this]() { onStart(); });
+  on_start = ([this](){ showMessage("OTA starting...", 1); });
+
   ArduinoOTA.onEnd([this]() {
     showMessage("OTA done.Reboot...",1);
   });
+
+  ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total) { onProgress(progress, total); });
+
   #ifdef OTA_USE_PROGRESS_BAR
   static char progressBar[OTA_PROGRESS_BAR_SIZE+1];
   memset(progressBar, ' ', OTA_PROGRESS_BAR_SIZE);
   progressBar[0] = '[';
   progressBar[OTA_PROGRESS_BAR_SIZE-1] = ']';
   progressBar[OTA_PROGRESS_BAR_SIZE] = '\0';
-  ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total) {
+  on_progress = ([this](unsigned int progress, unsigned int total) {
 	static unsigned int prevProg = 100;
     unsigned int prog = progress / (total/(OTA_PROGRESS_BAR_SIZE-2));
 	if ( prog != prevProg) {
@@ -107,7 +116,7 @@ int EasyOTA::setupOTA(unsigned long now)
     }
   });
   #else
-  ArduinoOTA.onProgress([this](unsigned int progress, unsigned int total) {
+  on_progress = ([this](unsigned int progress, unsigned int total) {
     static unsigned int prevPerc = 100;
     unsigned int perc = (progress / (total / 100));
     unsigned int roundPerc = 5 * (int)(perc / 5);
@@ -117,6 +126,7 @@ int EasyOTA::setupOTA(unsigned long now)
     }
   });
   #endif
+
   ArduinoOTA.onError([this](ota_error_t error) {
     showMessage("OTA Error " + String(error) + ":", 0);
     String line2 = "";
@@ -259,13 +269,12 @@ int EasyOTA::scanWifi(unsigned long now)
 
 						#ifdef ESP32 // Espressif Arduino API doesn't tell you about hidden networks
 						WiFi.getNetworkInfo(i, ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan);
-						if (call_scan)
-							onScan(ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan, false);
+						hidden_scan = false;
 						#else
 						WiFi.getNetworkInfo(i, ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan, hidden_scan);
+						#endif
 						if (call_scan)
 							onScan(ssid_scan, sec_scan, rssi_scan, BSSID_scan, chan_scan, hidden_scan);
-						#endif
 
 						bool bl = black_list.count(ssid_scan);
 						bool cap = _access_points.count(ssid_scan);
@@ -391,3 +400,13 @@ void EasyOTA::onScan(const String& ssid, uint8_t sec, int32_t rssi, const uint8_
 		on_scan(ssid, sec, rssi, BSSID, chan, hidden);
 	}
 }
+
+void EasyOTA::onProgress(unsigned int progress, unsigned int total)
+{
+	if (on_progress)
+	{
+		on_progress(progress, total);
+	}
+}
+
+void EasyOTA::onStart() { if (on_start) on_start(); }

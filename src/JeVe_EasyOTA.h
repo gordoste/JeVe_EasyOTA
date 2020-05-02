@@ -98,6 +98,8 @@ public:
     void onScan(THandlerFunction_Scan fn);
     void onProgress(ArduinoOTAClass::THandlerFunction_Progress fn);
     void onStart(ArduinoOTAClass::THandlerFunction fn);
+    void onEnd(ArduinoOTAClass::THandlerFunction fn);
+    void onError(ArduinoOTAClass::THandlerFunction_Error fn);
     ///
     /// Allows open wifi networks
     /// NOTE: will scan for networks
@@ -157,12 +159,16 @@ private:
     THandlerFunction_Scan on_scan;
     ArduinoOTAClass::THandlerFunction_Progress on_progress;
     ArduinoOTAClass::THandlerFunction on_start;
+    ArduinoOTAClass::THandlerFunction on_end;
+    ArduinoOTAClass::THandlerFunction_Error on_error;
 
     void showMessage(const String &message, int line_nr = 1);
     void callConnect(EasyOTA::STATE state);
     void onScan(const String &ssid, uint8_t sec, int32_t rssi, const uint8_t *BSSID, int32_t chan, bool hidden);
     void onProgress(unsigned int progress, unsigned int total);
     void onStart();
+    void onEnd();
+    void onError(ota_error_t err);
 
     int setupWifi(unsigned long now);
     int connectWifi(unsigned long now, const String &wifi_ssid, const String &wifi_password, const uint8_t *BSSID, int32_t chan);
